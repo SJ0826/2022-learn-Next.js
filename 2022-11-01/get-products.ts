@@ -1,8 +1,8 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
-import { PrismaClient } from '@prisma/client'
-import { getOrderBy } from '../../constants/products'
+import type { NextApiRequest, NextApiResponse } from "next";
+import { PrismaClient } from "@prisma/client";
+import { getOrderBy } from "../../constants/products";
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
 async function getProducts({
   skip,
@@ -11,55 +11,55 @@ async function getProducts({
   orderBy,
   contains,
 }: {
-  skip: number
-  take: number
-  category: number
-  orderBy: string
-  contains: string
+  skip: number;
+  take: number;
+  category: number;
+  orderBy: string;
+  contains: string;
 }) {
   const containsCondition =
-    contains && contains !== ''
+    contains && contains !== ""
       ? {
           name: { contains: contains },
         }
-      : undefined
+      : undefined;
   const where =
     category && category != -1
       ? {
-          where: {
-            category_id: category,
-            ...containsCondition,
-          },
+          category_id: category,
+          ...containsCondition,
         }
-      : containsCondition : containsCondition : undefined
-  const orderByCondition = getOrderBy(orderBy)
+      : containsCondition
+      ? containsCondition
+      : undefined;
+  const orderByCondition = getOrderBy(orderBy);
   try {
     const response = await prisma.products.findMany({
       skip: skip,
       take: take,
-      ...{where: where},
       ...orderByCondition,
-    })
-    console.log(response)
-    return response
+      where: where,
+    });
+    console.log(response);
+    return response;
   } catch (error) {
-    console.error(error)
+    console.error(error);
   }
 }
 
 type Data = {
-  items?: any
-  message: string
-}
+  items?: any;
+  message: string;
+};
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>
 ) {
-  const { skip, take, category, orderBy, contains } = req.query
+  const { skip, take, category, orderBy, contains } = req.query;
   if (skip == null || take == null) {
-    res.status(400).json({ message: `no skip or take` })
-    return
+    res.status(400).json({ message: `no skip or take` });
+    return;
   }
   try {
     const products = await getProducts({
@@ -68,9 +68,9 @@ export default async function handler(
       category: Number(category),
       orderBy: String(orderBy),
       contains: String(contains),
-    })
-    res.status(200).json({ items: products, message: `Success` })
+    });
+    res.status(200).json({ items: products, message: `Success` });
   } catch (error) {
-    return res.status(400).json({ message: `Failed` })
+    return res.status(400).json({ message: `Failed` });
   }
 }
