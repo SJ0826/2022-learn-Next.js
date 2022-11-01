@@ -1,40 +1,47 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
-import { PrismaClient } from '@prisma/client'
+import type { NextApiRequest, NextApiResponse } from "next";
+import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
-async function getProductsCount(category: number) {
+async function getProductsCount(category: number, contains: string) {
+  const containsCondition =
+    contains && contains !== ""
+      ? {
+          name: { contains: contains },
+        }
+      : undefined;
   const where =
     category && category != -1
       ? {
-          where: {
-            category_id: category,
-          },
+          category_id: category,
+          ...containsCondition,
         }
-      : undefined
+      : containsCondition
+      ? containsCondition
+      : undefined;
   try {
-    const response = await prisma.products.count(where)
-    console.log(response)
-    return response
+    const response = await prisma.products.count({ where: where });
+    console.log(response);
+    return response;
   } catch (error) {
-    console.error(error)
+    console.error(error);
   }
 }
 
 type Data = {
-  items?: any
-  message: string
-}
+  items?: any;
+  message: string;
+};
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>
 ) {
-  const { category } = req.query
+  const { category, contains } = req.query;
   try {
-    const products = await getProductsCount(Number(category))
-    res.status(200).json({ items: products, message: `Success` })
+    const products = await getProductsCount(Number(category), String(contains));
+    res.status(200).json({ items: products, message: `Success` });
   } catch (error) {
-    return res.status(400).json({ message: `Failed` })
+    return res.status(400).json({ message: `Failed` });
   }
 }

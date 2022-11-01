@@ -1,38 +1,82 @@
-import { products } from '@prisma/client'
-import { useCallback, useEffect, useState } from 'react'
-import Image from 'next/image'
+import { categories, products } from "@prisma/client";
+import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
+import { Pagination, SegmentedControl, Select, Input } from "@mantine/core";
+import { TAKE, CATEGORY_MAP, FILTERS } from "constants/products";
+import { IconSearch } from "@tabler/icons";
 
-const TAKE = 9
 export default function Products() {
-  const [skip, setSkip] = useState(0)
-  const [products, setProducts] = useState<products[]>([])
+  const [activePage, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [categories, setCategories] = useState<categories[]>([]);
+  const [selectedCategory, setCategory] = useState<string | undefined>("-1");
+  const [products, setProducts] = useState<products[]>([]);
+  const [selectedFilter, setFilter] = useState<string | null>(FILTERS[0].value);
+  const [keyword, setKeyword] = useState("");
 
   useEffect(() => {
-    fetch(`/api/get-products?skip=0&take=${TAKE}`)
+    fetch(`/api/get-categories`)
       .then((res) => res.json())
-      .then((data) => setProducts(data.items))
-  }, [])
+      .then((data) => setCategories(data.items));
+  }, []);
 
-  const getProducts = useCallback(() => {
-    const next = skip + TAKE
-    fetch(`/api/get-products?skip=${next}&take=${TAKE}`)
+  useEffect(() => {
+    fetch(
+      `/api/get-products-count?category=${selectedCategory}&contain=${keyword}`
+    )
       .then((res) => res.json())
-      .then((data) => {
-        const list = products.concat(data.items)
-        setProducts(list)
-      })
-    setSkip(next)
-  }, [skip, products])
+      .then((data) => setTotal(Math.ceil(data.items / TAKE)));
+  }, [selectedCategory, keyword]);
+
+  useEffect(() => {
+    const skip = TAKE * (activePage - 1);
+    fetch(
+      `/api/get-products?skip=${skip}&take=${TAKE}&category=${selectedCategory}&orderBy${selectedFilter}&contain=${keyword}`
+    )
+      .then((res) => res.json())
+      .then((data) => setProducts(data.items));
+  }, [activePage, selectedCategory, selectedFilter, keyword]);
+
+  const handlerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setKeyword(e.target.value);
+  };
   return (
     <div className="px-36 mt-35 mb-36">
+      <div className="mb-4">
+        <Input
+          icon={<IconSearch />}
+          placeholder="Search"
+          value={keyword}
+          onChange={handlerChange}
+        />
+      </div>
+      <div className="mb-4">
+        <Select value={selectedFilter} onChange={setFilter} data={FILTERS} />
+      </div>
+      {categories && (
+        <div className="mb-4">
+          <SegmentedControl
+            value={selectedCategory}
+            onChange={setCategory}
+            data={[
+              { label: "ALL", value: "-1" },
+              ...categories.map((category) => ({
+                label: category.name,
+                value: String(category.id),
+              })),
+            ]}
+            color="dark"
+          />
+        </div>
+      )}
       {products && (
         <div className="grid grid-cols-3 gap-5">
           {products.map((item) => (
-            <div key={item.id}>
+            <div key={item.id} style={{ maxWidth: 310 }}>
               <Image
                 className="rounded"
                 alt={item.name}
-                src={item.image_url ?? ''}
+                src={item.image_url ?? ""}
                 width={300}
                 height={200}
                 placeholder="blur"
@@ -41,22 +85,24 @@ export default function Products() {
               <div className="flex">
                 <span>{item.name}</span>
                 <span className="ml-auto">
-                  {item.price.toLocaleString('ko-KR')}원
+                  {item.price.toLocaleString("ko-KR")}원
                 </span>
               </div>
               <span className="text-zinc-400">
-                {item.category_id === 1 && '의류'}
+                {CATEGORY_MAP[item.category_id - 1]}
               </span>
             </div>
           ))}
         </div>
       )}
-      <button
-        className="w-full rounded mt-20 bg-zinc200 p-4"
-        onClick={getProducts}
-      >
-        더보기
-      </button>
+      <div className="w-full flex mt-5">
+        <Pagination
+          className="mg-auto"
+          page={activePage}
+          onChange={setPage}
+          total={total}
+        />
+      </div>
     </div>
-  )
+  );
 }
